@@ -13,30 +13,30 @@ namespace WorkoutTrackerServices.Services;
 public class AuthService(IUserRepository userRepository, ILogger<AuthService> logger, IConfiguration configuration)
     : IAuthService
 {
-    
+
     public async Task<bool> SignUpAsync(SignUpRequestDto signUpRequestDto)
     {
         try
         {
             logger.LogInformation("Attempting to register user: {Email}", signUpRequestDto.Email);
-            
+
             if (await userRepository.GetByEmailAsync(signUpRequestDto.Email).ConfigureAwait(false) != null)
             {
                 logger.LogWarning("User with username {Username} already exists", signUpRequestDto.Username);
                 return false; // User already exists
             }
-            
+
             //map reqDto to db entity
             User user = new()
             {
-                Username  = signUpRequestDto.Username,
+                Username = signUpRequestDto.Username,
                 FirstName = signUpRequestDto.FirstName,
                 LastName = signUpRequestDto.LastName,
                 Email = signUpRequestDto.Email,
                 CreatedAt = DateTime.Now,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(signUpRequestDto.Password)
             };
-            
+
             await userRepository.AddAsync(user).ConfigureAwait(false);
 
             logger.LogInformation("User {Email} registered successfully", user.Email);
@@ -48,7 +48,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
             throw;
         }
     }
-    
+
     /// <summary>
     /// Logs in a user and generates an access token and refresh token.
     /// </summary>
@@ -78,7 +78,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
 
             // Store refresh token and expiry time
             user.RefreshToken = refreshToken;
-           user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7); // Refresh token valid for 7 days
+            user.RefreshTokenExpiryTime = DateTime.Now.AddDays(7); // Refresh token valid for 7 days
             await userRepository.UpdateUser(user);
 
             logger.LogInformation("User {Email} logged in successfully", email);
@@ -94,7 +94,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
             throw;
         }
     }
-    
+
     /// <summary>
     /// Generating the access token for user
     /// </summary>
@@ -108,23 +108,25 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
         {
             throw new InvalidOperationException("JWT_KEY is empty or null");
         }
-       
+
         var key = Encoding.ASCII.GetBytes(jwtKey);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
             {
                 new Claim(ClaimTypes.Name, user.UserId.ToString()),
-                new Claim("Email", user.Email),   
-                new Claim("UserName", user.Username)   
+                new Claim("Email", user.Email),
+                new Claim("UserName", user.Username)
             }),
             Expires = DateTime.Now.AddMinutes(30),//token will expire in 30 minutes
+            Issuer = configuration["JwtSettings:Issuer"],       // ✅ Add this
+            Audience = configuration["JwtSettings:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
         SecurityToken? token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
-    
+
     // Generate refresh token
     private string GenerateRefreshToken()
     {
@@ -137,7 +139,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
         }
         return Convert.ToBase64String(randomBytes); // This will produce a 256-character string
     }
-    
+
 
     /// <summary>
     /// Refreshes the access token using the refresh token.
@@ -187,7 +189,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
             throw;
         }
     }
-    
+
     /// <summary>
     /// Gets princple from the expired token for refreshing the token
     /// </summary>
