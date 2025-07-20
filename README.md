@@ -4,6 +4,7 @@ A full-stack **Workout Tracking API** built with **.NET 8**, **PostgreSQL (Supab
 
 ---
 
+
 ## 🚀 Features
 
 - 🧑‍💻 User authentication (sign up, login, JWT secured)
@@ -12,8 +13,10 @@ A full-stack **Workout Tracking API** built with **.NET 8**, **PostgreSQL (Supab
 - 📈 Generate progress reports from past sessions
 - ✅ Soft delete support
 - 🌐 Swagger UI for API testing
+- 🤖 **LLM Chat Endpoint**: Ask coding, fitness, or general questions via `/v1/workout/llm/chat` (powered by OllamaSharp & Llama 3)
 
 ---
+
 
 ## 🛠️ Tech Stack
 
@@ -21,7 +24,14 @@ A full-stack **Workout Tracking API** built with **.NET 8**, **PostgreSQL (Supab
 - **Database**: PostgreSQL (Supabase)
 - **Security**: JWT Auth
 - **ORM**: Entity Framework Core
+- **LLM**: OllamaSharp, Llama 3 (local LLM integration)
 - **Containerized**: Docker, Docker Hub
+
+---
+
+## 🤖 LLM Chat API Usage
+
+Send a POST request to `/v1/workout/llm/chat` with `{ "prompt": "your question here" }` to get concise, well-formatted answers (including code) for fitness, coding, or general queries.
 
 ---
 
