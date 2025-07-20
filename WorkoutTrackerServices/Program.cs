@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OllamaSharp;
 using WorkoutTrackerServices.Entities;
 using WorkoutTrackerServices.Repositories;
 using WorkoutTrackerServices.Repositories.Interfaces;
@@ -14,6 +16,9 @@ using WorkoutTrackerServices.Services;
 using WorkoutTrackerServices.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
+// Ollama config (optional, can be set in appsettings.json)
+// builder.Configuration["Ollama:Endpoint"] = "http://localhost:11434";
+// builder.Configuration["Ollama:DefaultModel"] = "llama3";
 
 ConfigureServices(builder);
 ConfigureAuthentication(builder);
@@ -47,6 +52,15 @@ void ConfigureServices(WebApplicationBuilder builder)
 
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddAutoMapper(typeof(Program));
+    // Register OllamaSharp IChatClient for LLM (for chat history support)
+    builder.Services.AddSingleton<IChatClient>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var endpoint = config["Ollama:Endpoint"] ?? "http://localhost:11434";
+        var model = config["Ollama:DefaultModel"] ?? "llama3";
+        return new OllamaApiClient(new Uri(endpoint), model);
+    });
+    builder.Services.AddScoped<ILlmService, LlmService>();
     ConfigureSwagger(builder);
 }
 
@@ -93,6 +107,8 @@ void ConfigureSwagger(WebApplicationBuilder builder)
 void ConfigureAuthentication(WebApplicationBuilder builder)
 {
     string jwtKey = builder.Configuration["JwtSettings:Key"] ?? throw new ApplicationException("JWT_KEY is missing");
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+// builder.Services.Configure<JwtSettings>(jwtSettings);
     byte[] key = Encoding.ASCII.GetBytes(jwtKey);
 
     builder.Services.AddAuthentication(options =>
@@ -111,7 +127,9 @@ void ConfigureAuthentication(WebApplicationBuilder builder)
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
         };
     });
 

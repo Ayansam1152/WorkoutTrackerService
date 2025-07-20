@@ -17,7 +17,6 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
     /// <param name="request"></param>
     /// <returns></returns>
     [HttpPost("signup")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
     [ProducesResponseType(typeof(ApiResponse<string>), 400)]
     [ProducesResponseType(typeof(ApiResponse<string>), 500)]
