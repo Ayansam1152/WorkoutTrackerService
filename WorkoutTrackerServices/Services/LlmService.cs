@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using OllamaSharp;
 using OllamaSharp.Models;
 using WorkoutTrackerServices.Models.LLM;
+using WorkoutTrackerServices.Repositories.Interfaces;
 
 namespace WorkoutTrackerServices.Services
 {
@@ -16,12 +17,25 @@ namespace WorkoutTrackerServices.Services
         private readonly IChatClient _client;
         private readonly string _defaultModel;
         private readonly string _systemFilePath;
+        private readonly ILlmChatHistoryRepository _chatRepo;
+        private readonly string _systemPrompt;
 
-        public LlmService(IConfiguration config, IChatClient client)
+        public LlmService(IConfiguration config, IChatClient client, ILlmChatHistoryRepository chatRepo)
         {
             _defaultModel = config["Ollama:DefaultModel"] ?? "llama3";
             _systemFilePath = config["Ollama:SystemFilePath"] ?? "knowledgeFileContents.md";
             _client = client;
+            _chatRepo = chatRepo;
+            // Load system prompt once
+            string systemPromptPath = Path.Combine(AppContext.BaseDirectory, "LLM", "knowledgeFileContents.md");
+            if (File.Exists(systemPromptPath))
+            {
+                _systemPrompt = File.ReadAllText(systemPromptPath);
+            }
+            else
+            {
+                _systemPrompt = string.Empty;
+            }
         }
 
         public async Task<LlmResponseDto> GetLlmResponseAsync(LlmRequestDto request)
@@ -31,42 +45,42 @@ namespace WorkoutTrackerServices.Services
                 throw new ArgumentException("Request and prompt cannot be null or empty.");
             }
 
+            // TODO: Pass userId in request or via context
+            int userId = request.UserId; // Add UserId property to LlmRequestDto if not present
 
             var chatHistory = new List<ChatMessage>();
-            try
+            // Add system prompt only for LLM context
+            if (!string.IsNullOrWhiteSpace(_systemPrompt))
             {
-                // Always load the system prompt from the output directory's LLM/knowledgeFileContents.md
-                string systemPromptPath = Path.Combine(AppContext.BaseDirectory, "LLM", "knowledgeFileContents.md");
-                if (File.Exists(systemPromptPath))
-                {
-                    string knowledgeFileContents = File.ReadAllText(systemPromptPath);
-                    chatHistory.Add(new ChatMessage(ChatRole.System, knowledgeFileContents));
-                }
-                else
-                {
-                    // Optionally log: system prompt file not found
-                }
+                chatHistory.Add(new ChatMessage(ChatRole.System, _systemPrompt));
             }
-            catch (Exception)
+
+            // Fetch previous chats for user and add to history
+            var previousChats = await _chatRepo.GetUserChatsAsync(userId, 10);
+            foreach (var chat in previousChats.OrderBy(c => c.Timestamp))
             {
-                // Optionally log: error reading system prompt file
+                chatHistory.Add(new ChatMessage(ChatRole.User, chat.Prompt));
+                chatHistory.Add(new ChatMessage(ChatRole.Assistant, chat.Response));
             }
 
             chatHistory.Add(new ChatMessage(ChatRole.User, request.Prompt));
 
             var responseBuilder = new StringBuilder();
-            // Optionally, you can load the system prompt from the new LLM/knowledgeFileContents.md here if needed
-            // string systemFile = Path.Combine("LLM", "knowledgeFileContents.md");
-            // if (File.Exists(systemFile))
-            // {
-            //     var systemPrompt = File.ReadAllText(systemFile);
-            //     // You can prepend systemPrompt to the user prompt if your LLM supports it
-            // }
             await foreach (var update in _client.GetStreamingResponseAsync(chatHistory))
             {
                 responseBuilder.Append(update.Text);
             }
-            return new LlmResponseDto { Response = responseBuilder.ToString() };
+            string response = responseBuilder.ToString();
+
+            // Store only user/assistant messages in DB
+            await _chatRepo.AddChatAsync(new Entities.LlmChatHistory
+            {
+                UserId = userId,
+                Prompt = request.Prompt,
+                Response = response
+            });
+
+            return new LlmResponseDto { Response = response };
         }
     }
 }

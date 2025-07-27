@@ -41,6 +41,7 @@ void ConfigureServices(WebApplicationBuilder builder)
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IWorkoutRepository, WorkoutRepository>();
     builder.Services.AddScoped<IWorkoutService, WorkoutService>();
+    builder.Services.AddScoped<ILlmChatHistoryRepository, LlmChatHistoryRepository>();
     builder.Services.AddControllers(options =>
     {
         // Apply [Authorize] globally

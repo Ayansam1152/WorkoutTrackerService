@@ -26,6 +26,7 @@ public partial class WorkoutContext : DbContext
     public virtual DbSet<WorkoutReport> WorkoutReports { get; set; }
 
     public virtual DbSet<WorkoutSchedule> WorkoutSchedules { get; set; }
+    public virtual DbSet<LlmChatHistory> LlmChatHistories { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

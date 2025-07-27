@@ -118,7 +118,7 @@ public class AuthService(IUserRepository userRepository, ILogger<AuthService> lo
                 new Claim("Email", user.Email),
                 new Claim("UserName", user.Username)
             }),
-            Expires = DateTime.Now.AddMinutes(30),//token will expire in 30 minutes
+            Expires = DateTime.Now.AddMinutes(60),//token will expire in 30 minutes
             Issuer = configuration["JwtSettings:Issuer"],       // ✅ Add this
             Audience = configuration["JwtSettings:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

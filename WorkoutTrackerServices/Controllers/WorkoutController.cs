@@ -43,6 +43,7 @@ namespace WorkoutTrackerServices.Controllers
         {
             try
             {
+                request.UserId = GetUserIdFromToken();
                 var response = await llmService.GetLlmResponseAsync(request);
                 return Ok(new ApiResponse<LlmResponseDto> { Data = [response] });
             }
