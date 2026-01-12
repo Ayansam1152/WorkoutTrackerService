@@ -29,6 +29,7 @@ public partial class WorkoutContext : DbContext
     public virtual DbSet<LlmChatHistory> LlmChatHistories { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
+        // ...existing code...
     {
         modelBuilder.Entity<Exercise>(entity =>
         {
@@ -118,6 +119,18 @@ public partial class WorkoutContext : DbContext
         });
 
         OnModelCreatingPartial(modelBuilder);
+        modelBuilder.Entity<LlmChatHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Prompt).IsRequired();
+            entity.Property(e => e.Response).IsRequired();
+            entity.Property(e => e.Timestamp).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("LlmChatHistory_UserId_fkey");
+        });
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
